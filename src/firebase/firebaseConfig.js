@@ -3,8 +3,11 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+// Debug: Check if environment variables are loading
+console.log('API Key from env:', process.env.REACT_APP_API_KEY);
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBabtUoZw0N6ItLOcjSgIxAMIcKop-2Bwc",
+  apiKey: "AIzaSyCPVzSi8IRbJraunWfhQ6N8KiS7ZnUAtm4",
   authDomain: "discount-aggregator.firebaseapp.com",
   projectId: "discount-aggregator",
   storageBucket: "discount-aggregator.firebasestorage.app",
