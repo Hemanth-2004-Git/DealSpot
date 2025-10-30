@@ -1,43 +1,48 @@
 // src/services/scrapingService.js
-// Removed unused imports from firebase
-// import { collection, addDoc } from 'firebase/firestore';
-// import { db } from '../firebase/firebaseConfig';
 
 class ScrapingService {
   constructor() {
     this.isScraping = false;
+
+    // ✅ Use correct backend base URL dynamically
+    this.BASE_URL =
+      process.env.NODE_ENV === "production"
+        ? "https://dealspot-1.onrender.com" // 🔹 your backend Render URL
+        : "http://localhost:3001";
   }
 
   async searchProducts(searchTerm, maxResults = 20) {
     try {
       console.log(`🎯 Fast search for: ${searchTerm}`);
-      
+
       // Direct backend call - no caching delays
       const scrapedProducts = await this.performBackendScraping(searchTerm, maxResults);
-      
+
       console.log(`✅ Received ${scrapedProducts.length} products`);
       return scrapedProducts;
-      
+
     } catch (error) {
-      console.error('Search error:', error);
-      return []; // Will be handled by backend fallbacks
+      console.error("Search error:", error);
+      return []; // fallback
     }
   }
 
   async performBackendScraping(searchTerm, maxResults) {
     try {
-      const response = await fetch(`http://localhost:3001/api/scrape?query=${encodeURIComponent(searchTerm)}&maxResults=${maxResults}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 10000
-      });
-      
-      if (!response.ok) throw new Error('Backend error');
-      
+      const response = await fetch(
+        `${this.BASE_URL}/api/scrape?query=${encodeURIComponent(searchTerm)}&maxResults=${maxResults}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (!response.ok) throw new Error("Backend error");
+
       return await response.json();
     } catch (error) {
-      console.error('Backend error:', error);
-      throw error; // Let the component handle fallback
+      console.error("Backend error:", error);
+      throw error;
     }
   }
 
