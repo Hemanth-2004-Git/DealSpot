@@ -1,17 +1,23 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 
 require('dotenv').config();
 
 const app = express();
 
 // CORS configuration - allow your frontend
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true
-}));
-
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000',
+      'https://deal-spot.netlify.app',
+      'https://dealspot-1.onrender.com',
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // 📦 SIMPLE WISHLIST ENDPOINTS (Without Firebase Admin)
@@ -588,9 +594,16 @@ app.get('/api/health', (req, res) => {
     linkTypes: 'Real search links only - guaranteed to work'
   });
 });
+app.use(express.static(path.join(__dirname, 'build')));
+
+// Fallback route – let React handle unknown routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🚀 DISCOUNT AGGREGATOR API running on port ${PORT}`);
   console.log('💰 Exact e-commerce price formatting ENABLED');
   console.log('📱 Products will display exactly like Amazon/Flipkart!');
