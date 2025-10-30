@@ -10,11 +10,8 @@ const app = express();
 // CORS configuration - allow your frontend
 app.use(
   cors({
-    origin: [
-      'http://localhost:3000',
-      'https://deal-spot.netlify.app',
-      'https://dealspot-1.onrender.com',
-    ],
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
@@ -595,13 +592,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 app.use(express.static(path.join(__dirname, 'build')));
-
+const buildPath = path.join(__dirname, "build");
+app.use(express.static(buildPath));
 // Fallback route – let React handle unknown routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(buildPath, "index.html"));
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🚀 DISCOUNT AGGREGATOR API running on port ${PORT}`);
