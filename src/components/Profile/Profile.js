@@ -12,6 +12,8 @@ const Profile = () => {
   const [updating, setUpdating] = useState(false);
   const [preferences, setPreferences] = useState([]);
   const [activeTab, setActiveTab] = useState('profile');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,18 +25,19 @@ const Profile = () => {
           const data = userDoc.data();
           setUserData(data);
           setPreferences(data.preferences || []);
+          setNewName(data.name || '');
         } else {
           // Handle case where user document doesn't exist (Google signup)
-          // Create a basic user data object from Firebase Auth
           const basicUserData = {
             name: currentUser.displayName || 'User',
             email: currentUser.email,
             preferences: [],
             wishlist: [],
-            createdAt: new Date() // fallback to current date
+            createdAt: new Date()
           };
           setUserData(basicUserData);
           setPreferences([]);
+          setNewName(currentUser.displayName || 'User');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -60,6 +63,38 @@ const Profile = () => {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleNameUpdate = async () => {
+    if (!newName.trim()) {
+      alert('Please enter a valid name');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        name: newName.trim()
+      });
+      
+      // Update local state - this will automatically update the header
+      setUserData(prev => ({
+        ...prev,
+        name: newName.trim()
+      }));
+      
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Error updating name:', error);
+      alert('Failed to update name. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setNewName(userData?.name || currentUser?.displayName || 'User');
+    setIsEditingName(false);
   };
 
   const handleLogout = async () => {
@@ -94,6 +129,7 @@ const Profile = () => {
   }
 
   const userInitial = (userData?.name?.charAt(0) || currentUser?.displayName?.charAt(0) || 'U').toUpperCase();
+  const displayName = userData?.name || currentUser?.displayName || 'User';
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -109,9 +145,7 @@ const Profile = () => {
                 </span>
               </div>
               <div>
-                <h1 className="text-3xl font-bold">
-                  {userData?.name || currentUser?.displayName || 'User'}
-                </h1>
+                <h1 className="text-3xl font-bold">{displayName}</h1>
                 <p className="text-blue-100 text-lg">
                   {userData?.email || currentUser?.email}
                 </p>
@@ -170,19 +204,77 @@ const Profile = () => {
                       <span className="mr-2">👤</span>
                       Personal Information
                     </h3>
-                    <div className="space-y-3">
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Name:</span> {userData?.name || currentUser?.displayName || 'Not set'}
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Email:</span> {userData?.email || currentUser?.email}
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-semibold">User ID:</span>
-                        <span className="font-mono text-sm bg-white/50 px-2 py-1 rounded ml-2">
-                          {currentUser?.uid.substring(0, 8)}...
-                        </span>
-                      </p>
+                    <div className="space-y-4">
+                      {/* Name Field with Edit Option */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-gray-700 font-semibold mb-2">Name</p>
+                          {isEditingName ? (
+                            <div className="space-y-3">
+                              <input
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter your name"
+                                disabled={updating}
+                              />
+                              <div className="flex space-x-3">
+                                <button
+                                  onClick={handleNameUpdate}
+                                  disabled={updating || !newName.trim()}
+                                  className="bg-blue-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                                >
+                                  {updating ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                      <span>Saving...</span>
+                                    </>
+                                  ) : (
+                                    <span>Save</span>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  disabled={updating}
+                                  className="bg-gray-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <p className="text-gray-600 text-lg">{displayName}</p>
+                              <button
+                                onClick={() => setIsEditingName(true)}
+                                className="bg-blue-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-600 transition-colors duration-200 flex items-center space-x-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                <span>Edit Name</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Email Field (Read-only) */}
+                      <div className="border-t border-blue-200 pt-4">
+                        <p className="text-gray-700 font-semibold mb-2">Email</p>
+                        <p className="text-gray-600">{userData?.email || currentUser?.email}</p>
+                      </div>
+
+                      {/* User ID Field (Read-only) */}
+                      <div className="border-t border-blue-200 pt-4">
+                        <p className="text-gray-700 font-semibold mb-2">User ID</p>
+                        <p className="text-gray-600">
+                          <span className="font-mono text-sm bg-white/50 px-2 py-1 rounded">
+                            {currentUser?.uid.substring(0, 8)}...
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
