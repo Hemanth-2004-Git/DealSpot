@@ -3,14 +3,35 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SearchBar from '../Search/SearchBar';
 import { useWishlist } from '../../contexts/WishlistContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase/firebaseConfig';
 import { HiOutlineMenuAlt2, HiOutlineHeart, HiOutlineLogout, HiOutlineCog, HiChevronDown } from 'react-icons/hi';
 
-const Navbar = ({ onMenuClick, user, onLogout }) => {
+const Navbar = ({ onMenuClick, onLogout }) => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [userData, setUserData] = useState(null);
   const { wishlistCount } = useWishlist();
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!currentUser) return;
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+    fetchUserData();
+  }, [currentUser]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,8 +53,9 @@ const Navbar = ({ onMenuClick, user, onLogout }) => {
     setSearchTerm(term);
   };
 
-  const userInitial = user?.displayName?.charAt(0)?.toUpperCase() ||
-                     user?.email?.charAt(0)?.toUpperCase() || 'U';
+  // Use Firestore name first, then fallback to Firebase Auth displayName
+  const displayName = userData?.name || currentUser?.displayName || 'User';
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-lg sticky top-0 z-50">
@@ -113,7 +135,7 @@ const Navbar = ({ onMenuClick, user, onLogout }) => {
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-slate-800 truncate max-w-[100px]">
-                    {user?.displayName?.split(' ')[0] || 'User'}
+                    {displayName.split(' ')[0]}
                   </p>
                 </div>
                 <HiChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
@@ -123,8 +145,8 @@ const Navbar = ({ onMenuClick, user, onLogout }) => {
               {isUserDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-100 py-1 z-50">
                   <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{user?.displayName || 'User'}</p>
-                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
+                    <p className="text-xs text-slate-500 truncate">{currentUser?.email}</p>
                   </div>
 
                   <button
