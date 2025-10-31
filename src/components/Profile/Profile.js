@@ -1,7 +1,7 @@
 // src/components/Profile/Profile.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWishlist } from '../../contexts/WishlistContext'; // ✨ ADD THIS
+import { useWishlist } from '../../contexts/WishlistContext';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase/firebaseConfig';
 import { signOut } from 'firebase/auth';
@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { currentUser } = useAuth();
-  const { wishlistCount } = useWishlist(); // ✨ GET REAL WISHLIST COUNT
+  const { wishlistCount } = useWishlist();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -18,26 +18,24 @@ const Profile = () => {
   const navigate = useNavigate();
 
   // 🎮 EASTER EGG: Konami Code
-  const [konamiSequence, setKonamiSequence] = useState([]);
   const [easterEggActive, setEasterEggActive] = useState(false);
   const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
   useEffect(() => {
+    let sequence = [];
+    
     const handleKeyDown = (e) => {
-      setKonamiSequence(prev => {
-        const newSeq = [...prev, e.key].slice(-10);
-        if (newSeq.join(',') === KONAMI_CODE.join(',')) {
-          setEasterEggActive(true);
-          setTimeout(() => setEasterEggActive(false), 5000);
-          return [];
-        }
-        return newSeq;
-      });
+      sequence = [...sequence, e.key].slice(-10);
+      if (sequence.join(',') === KONAMI_CODE.join(',')) {
+        setEasterEggActive(true);
+        setTimeout(() => setEasterEggActive(false), 5000);
+        sequence = [];
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [KONAMI_CODE]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -164,7 +162,6 @@ const Profile = () => {
             </div>
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <div className="text-center">
-                {/* ✨ FIXED: Now uses wishlistCount from context */}
                 <div className="text-2xl font-bold">{wishlistCount}</div>
                 <div className="text-blue-100 text-sm">Wishlist Items</div>
               </div>
@@ -232,7 +229,6 @@ const Profile = () => {
                       <p className="text-gray-700">
                         <span className="font-semibold">Wishlist Items:</span>{' '}
                         <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
-                          {/* ✨ FIXED: Now uses wishlistCount from context */}
                           {wishlistCount}
                         </span>
                       </p>
