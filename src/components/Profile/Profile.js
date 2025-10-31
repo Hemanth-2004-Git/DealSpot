@@ -23,6 +23,18 @@ const Profile = () => {
           const data = userDoc.data();
           setUserData(data);
           setPreferences(data.preferences || []);
+        } else {
+          // Handle case where user document doesn't exist (Google signup)
+          // Create a basic user data object from Firebase Auth
+          const basicUserData = {
+            name: currentUser.displayName || 'User',
+            email: currentUser.email,
+            preferences: [],
+            wishlist: [],
+            createdAt: new Date() // fallback to current date
+          };
+          setUserData(basicUserData);
+          setPreferences([]);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -81,7 +93,7 @@ const Profile = () => {
     );
   }
 
-  const userInitial = userData?.name?.charAt(0)?.toUpperCase() || 'U';
+  const userInitial = (userData?.name?.charAt(0) || currentUser?.displayName?.charAt(0) || 'U').toUpperCase();
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -97,10 +109,18 @@ const Profile = () => {
                 </span>
               </div>
               <div>
-                <h1 className="text-3xl font-bold">{userData?.name || 'User'}</h1>
-                <p className="text-blue-100 text-lg">{userData?.email}</p>
+                <h1 className="text-3xl font-bold">
+                  {userData?.name || currentUser?.displayName || 'User'}
+                </h1>
+                <p className="text-blue-100 text-lg">
+                  {userData?.email || currentUser?.email}
+                </p>
                 <p className="text-blue-100 text-sm mt-2">
-                  Member since {userData?.createdAt?.toDate()?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) || 'Recently'}
+                  Member since {userData?.createdAt?.toDate?.()?.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  }) || 'Recently'}
                 </p>
               </div>
             </div>
@@ -144,7 +164,7 @@ const Profile = () => {
             <div className="space-y-8">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6">
                     <h3 className="font-semibold text-gray-900 mb-4 text-lg flex items-center">
                       <span className="mr-2">👤</span>
@@ -152,41 +172,15 @@ const Profile = () => {
                     </h3>
                     <div className="space-y-3">
                       <p className="text-gray-700">
-                        <span className="font-semibold">Name:</span> {userData?.name || 'Not set'}
+                        <span className="font-semibold">Name:</span> {userData?.name || currentUser?.displayName || 'Not set'}
                       </p>
                       <p className="text-gray-700">
-                        <span className="font-semibold">Email:</span> {userData?.email}
+                        <span className="font-semibold">Email:</span> {userData?.email || currentUser?.email}
                       </p>
                       <p className="text-gray-700">
                         <span className="font-semibold">User ID:</span>
                         <span className="font-mono text-sm bg-white/50 px-2 py-1 rounded ml-2">
                           {currentUser?.uid.substring(0, 8)}...
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6">
-                    <h3 className="font-semibold text-gray-900 mb-4 text-lg flex items-center">
-                      <span className="mr-2">📊</span>
-                      Account Statistics
-                    </h3>
-                    <div className="space-y-3">
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Wishlist Items:</span>{' '}
-                        <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
-                          {userData?.wishlist?.length || 0}
-                        </span>
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Preferences:</span>{' '}
-                        <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
-                          {preferences.length} categories
-                        </span>
-                      </p>
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Status:</span>{' '}
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                          Active
                         </span>
                       </p>
                     </div>
