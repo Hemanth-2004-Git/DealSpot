@@ -599,7 +599,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(buildPath, "index.html"));
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🚀 DISCOUNT AGGREGATOR API running on port ${PORT}`);
