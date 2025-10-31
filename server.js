@@ -8,13 +8,29 @@ require('dotenv').config();
 const app = express();
 
 // CORS configuration - allow your frontend
+// ✅ Improved CORS configuration for Netlify + Render
+const allowedOrigins = [
+  'https://dealspotpr.netlify.app',  // your frontend
+  'https://dealspot-1.onrender.com', // your backend
+  'http://localhost:3000'            // optional, for local testing
+];
+
 app.use(
   cors({
-    origin: "*",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = 'CORS policy does not allow access from this origin.';
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 // 📦 SIMPLE WISHLIST ENDPOINTS (Without Firebase Admin)
