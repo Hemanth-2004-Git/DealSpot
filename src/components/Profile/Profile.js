@@ -5,11 +5,9 @@ import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase/firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { useWishlist } from '../../contexts/WishlistContext'; // ADD THIS IMPORT
 
 const Profile = () => {
   const { currentUser } = useAuth();
-  const { wishlistProducts } = useWishlist(); // ADD THIS LINE
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -35,9 +33,6 @@ const Profile = () => {
 
     return () => unsubscribe();
   }, [currentUser]);
-
-  // Calculate wishlist count - use context data if available, otherwise fallback to Firestore
-  const wishlistCount = wishlistProducts ? wishlistProducts.length : (userData?.wishlist?.length || 0);
 
   const handlePreferenceToggle = async (preference) => {
     const newPreferences = preferences.includes(preference)
@@ -116,12 +111,7 @@ const Profile = () => {
                 </p>
               </div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{wishlistCount}</div> {/* CHANGED HERE */}
-                <div className="text-blue-100 text-sm">Wishlist Items</div>
-              </div>
-            </div>
+            {/* Removed the wishlist count widget from here */}
           </div>
         </div>
 
@@ -182,12 +172,6 @@ const Profile = () => {
                       <span className="mr-2">📊</span> Account Statistics
                     </h3>
                     <div className="space-y-3">
-                      <p className="text-gray-700">
-                        <span className="font-semibold">Wishlist Items:</span>{' '}
-                        <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
-                          {wishlistCount} {/* CHANGED HERE */}
-                        </span>
-                      </p>
                       <p className="text-gray-700">
                         <span className="font-semibold">Preferences:</span>{' '}
                         <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
