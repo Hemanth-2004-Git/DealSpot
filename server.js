@@ -10,7 +10,7 @@ const app = express();
 // CORS configuration - allow your frontend
 // ✅ Improved CORS configuration for Netlify + Render
 const allowedOrigins = [
-  'https://dealspotpr.netlify.app',  // your frontend
+  'https://deal-spot.vercel.app',  // your frontend
   'https://dealspot-1.onrender.com', // your backend
   'http://localhost:3000'            // optional, for local testing
 ];
