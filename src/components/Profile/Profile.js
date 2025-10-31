@@ -1,6 +1,7 @@
 // src/components/Profile/Profile.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWishlist } from '../../contexts/WishlistContext'; // ✨ ADD THIS
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase/firebaseConfig';
 import { signOut } from 'firebase/auth';
@@ -8,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { currentUser } = useAuth();
+  const { wishlistCount } = useWishlist(); // ✨ GET REAL WISHLIST COUNT
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -15,10 +17,31 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const navigate = useNavigate();
 
+  // 🎮 EASTER EGG: Konami Code
+  const [konamiSequence, setKonamiSequence] = useState([]);
+  const [easterEggActive, setEasterEggActive] = useState(false);
+  const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      setKonamiSequence(prev => {
+        const newSeq = [...prev, e.key].slice(-10);
+        if (newSeq.join(',') === KONAMI_CODE.join(',')) {
+          setEasterEggActive(true);
+          setTimeout(() => setEasterEggActive(false), 5000);
+          return [];
+        }
+        return newSeq;
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
 
-    // ✅ Real-time Firestore sync
     const unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (userDoc) => {
       if (userDoc.exists()) {
         const data = userDoc.data();
@@ -88,9 +111,37 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 🎮 EASTER EGG OVERLAY */}
+      {easterEggActive && (
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+          <div className="text-center animate-pulse">
+            <div className="text-8xl mb-4 animate-bounce">🎮</div>
+            <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 animate-pulse">
+              KONAMI CODE ACTIVATED!
+            </div>
+            <div className="text-xl text-gray-600 mt-2">✨ +30 Lives & Bug Fixed! ✨</div>
+          </div>
+          {/* Confetti Effect */}
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-ping"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${1 + Math.random() * 2}s`
+              }}
+            >
+              {['🎉', '✨', '🎊', '⭐', '💫', '🌟'][Math.floor(Math.random() * 6)]}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-700 p-8 text-white">
+        <div className={`bg-gradient-to-r from-blue-600 to-purple-700 p-8 text-white transition-all duration-500 ${easterEggActive ? 'animate-pulse' : ''}`}>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center space-x-6 mb-6 lg:mb-0">
               <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
@@ -113,7 +164,8 @@ const Profile = () => {
             </div>
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <div className="text-center">
-                <div className="text-2xl font-bold">{userData?.wishlist?.length || 0}</div>
+                {/* ✨ FIXED: Now uses wishlistCount from context */}
+                <div className="text-2xl font-bold">{wishlistCount}</div>
                 <div className="text-blue-100 text-sm">Wishlist Items</div>
               </div>
             </div>
@@ -180,7 +232,8 @@ const Profile = () => {
                       <p className="text-gray-700">
                         <span className="font-semibold">Wishlist Items:</span>{' '}
                         <span className="bg-white/50 px-3 py-1 rounded-full text-sm font-medium">
-                          {userData?.wishlist?.length || 0}
+                          {/* ✨ FIXED: Now uses wishlistCount from context */}
+                          {wishlistCount}
                         </span>
                       </p>
                       <p className="text-gray-700">
