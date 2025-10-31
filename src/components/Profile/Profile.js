@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase/firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +38,9 @@ const Profile = () => {
           setUserData(basicUserData);
           setPreferences([]);
           setNewName(currentUser.displayName || 'User');
+          
+          // Create the user document in Firestore
+          await setDoc(doc(db, 'users', currentUser.uid), basicUserData);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -73,9 +76,25 @@ const Profile = () => {
 
     try {
       setUpdating(true);
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        name: newName.trim()
-      });
+      
+      // First, check if document exists
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      
+      if (!userDoc.exists()) {
+        // Create document if it doesn't exist
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          name: newName.trim(),
+          email: currentUser.email,
+          preferences: [],
+          wishlist: [],
+          createdAt: new Date()
+        });
+      } else {
+        // Update existing document
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          name: newName.trim()
+        });
+      }
       
       // Update local state
       setUserData(prev => ({
