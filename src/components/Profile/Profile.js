@@ -19,10 +19,10 @@ const Profile = () => {
 
   // 🎮 EASTER EGG: Konami Code
   const [easterEggActive, setEasterEggActive] = useState(false);
-  const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
   useEffect(() => {
     let sequence = [];
+    const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
     
     const handleKeyDown = (e) => {
       sequence = [...sequence, e.key].slice(-10);
@@ -35,7 +35,7 @@ const Profile = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [KONAMI_CODE]);
+  }, []);
 
   useEffect(() => {
     if (!currentUser) return;
