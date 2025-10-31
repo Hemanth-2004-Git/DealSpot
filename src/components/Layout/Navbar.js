@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import SearchBar from '../Search/SearchBar';
 import { useWishlist } from '../../contexts/WishlistContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/firebaseConfig';
 import { HiOutlineMenuAlt2, HiOutlineHeart, HiOutlineLogout, HiOutlineCog, HiChevronDown } from 'react-icons/hi';
 
@@ -18,19 +18,23 @@ const Navbar = ({ onMenuClick, onLogout }) => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!currentUser) return;
-      try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+    if (!currentUser) return;
+
+    // Real-time listener for user data changes
+    const unsubscribe = onSnapshot(
+      doc(db, 'users', currentUser.uid),
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
           setUserData(data);
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
+      },
+      (error) => {
+        console.error('Error listening to user data:', error);
       }
-    };
-    fetchUserData();
+    );
+
+    return () => unsubscribe();
   }, [currentUser]);
 
   useEffect(() => {
@@ -70,7 +74,6 @@ const Navbar = ({ onMenuClick, onLogout }) => {
             >
               <HiOutlineMenuAlt2 className="h-6 w-6" />
             </button>
-            {/* Updated Logo to match Sidebar */}
             <Link to="/home" className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-xl p-2 -ml-2 transition-all duration-200 hover:scale-105 group">
               <div className="relative">
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-3">
