@@ -8,17 +8,15 @@ require('dotenv').config();
 const app = express();
 
 // CORS configuration - allow your frontend
-// ✅ Improved CORS configuration for Netlify + Render
 const allowedOrigins = [
-  'https://deal-spot.vercel.app',  // your frontend
-  'https://dealspot-1.onrender.com', // your backend
-  'http://localhost:3000'            // optional, for local testing
+  'https://deal-spot.vercel.app',
+  'https://dealspot-1.onrender.com',
+  'http://localhost:3000'
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
       if (allowedOrigins.indexOf(origin) === -1) {
         const msg = 'CORS policy does not allow access from this origin.';
@@ -33,7 +31,7 @@ app.use(
 
 app.use(express.json());
 
-// 📦 SIMPLE WISHLIST ENDPOINTS (Without Firebase Admin)
+// 📦 WISHLIST DATA STORAGE (In-memory - resets on server restart)
 let wishlistData = {};
 
 function generateProductId(product) {
@@ -50,30 +48,24 @@ function generateProductId(product) {
 function generatePriceDisplay(currentPrice, originalPrice, source) {
   if (!currentPrice && currentPrice !== 0) return { priceText: 'Price not available' };
   
-  // Convert to numbers
   const curr = typeof currentPrice === 'string' ? parseFloat(currentPrice.replace(/[^0-9.]/g, '')) : currentPrice;
   const orig = typeof originalPrice === 'string' ? parseFloat(originalPrice.replace(/[^0-9.]/g, '')) : originalPrice;
   
   if (isNaN(curr)) return { priceText: 'Price not available' };
   
-  // Format with Indian numbering
   const formattedCurrent = curr.toLocaleString('en-IN');
   const formattedOriginal = orig && !isNaN(orig) ? orig.toLocaleString('en-IN') : null;
   
-  // Calculate discount percentage
   let discountPercent = 0;
   if (formattedOriginal && orig > curr) {
     discountPercent = Math.round(((orig - curr) / orig) * 100);
   }
   
-  // ✅ NEW: Generate the exact price display format
   let priceDisplay = '';
   
   if (formattedOriginal && discountPercent > 0) {
-    // Format: "33,990 M.R.P: ₹34,900 (3% off)"
     priceDisplay = `₹${formattedCurrent} M.R.P: ₹${formattedOriginal} (${discountPercent}% off)`;
   } else {
-    // Single price display
     priceDisplay = `₹${formattedCurrent}`;
   }
   
@@ -86,7 +78,7 @@ function generatePriceDisplay(currentPrice, originalPrice, source) {
   };
 }
 
-// ✅ NEW: Generate additional info like delivery
+// ✅ Generate additional info like delivery
 function generateAdditionalInfo(source, category) {
   const deliveryDates = [
     'FREE delivery Mon, 3 Nov',
@@ -107,7 +99,6 @@ function generateAdditionalInfo(source, category) {
   const randomDelivery = deliveryDates[Math.floor(Math.random() * deliveryDates.length)];
   const randomPopular = popularTexts[Math.floor(Math.random() * popularTexts.length)];
   
-  // Return multiple lines of additional info
   return [randomPopular, randomDelivery];
 }
 
@@ -115,7 +106,6 @@ function generateAdditionalInfo(source, category) {
 function generateProductLink(productTitle, source) {
   const encodedTitle = encodeURIComponent(productTitle);
   
-  // ALWAYS use search links - they always work and show relevant products
   const storeSearchLinks = {
     'Amazon': `https://www.amazon.in/s?k=${encodedTitle}`,
     'Flipkart': `https://www.flipkart.com/search?q=${encodedTitle}`,
@@ -129,38 +119,42 @@ function generateProductLink(productTitle, source) {
     'Croma': `https://www.croma.com/search/?q=${encodedTitle}`,
     'Google Shopping': `https://www.google.com/search?tbm=shop&q=${encodedTitle}`,
     'Purpile.com': `https://www.purpile.com/search?q=${encodedTitle}`,
-    'FakeStore': `https://www.amazon.in/s?k=${encodedTitle}`, // Fallback to Amazon search
-    'Online Store': `https://www.amazon.in/s?k=${encodedTitle}` // Fallback to Amazon search
+    'FakeStore': `https://www.amazon.in/s?k=${encodedTitle}`,
+    'Online Store': `https://www.amazon.in/s?k=${encodedTitle}`
   };
 
-  // Return search link for the specific store
   const link = storeSearchLinks[source] || `https://www.amazon.in/s?k=${encodedTitle}`;
-  console.log(`🔗 Generated WORKING search link for "${productTitle}": ${link}`);
   return link;
 }
 
-// Mock authentication middleware
-const mockAuthenticateUser = async (req, res, next) => {
+// ✅ FIXED: REAL USER ID EXTRACTION (No more mock authentication)
+const extractUserId = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split('Bearer ')[1];
+    const userId = req.headers.authorization?.replace('Bearer ', '');
     
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID is required' });
     }
 
-    req.user = { uid: 'mock-user-id' };
+    // Validate it looks like a Firebase user ID
+    if (userId.length < 10) {
+      return res.status(401).json({ error: 'Invalid user ID format' });
+    }
+
+    req.userId = userId;
+    console.log('🔐 Authenticated user:', userId.substring(0, 8) + '...');
     next();
   } catch (error) {
-    console.log('❌ Authentication failed:', error.message);
-    res.status(401).json({ error: 'Invalid token' });
+    console.log('❌ User ID extraction failed:', error.message);
+    res.status(401).json({ error: 'Invalid user ID' });
   }
 };
 
-// Wishlist endpoints remain the same...
-app.post('/api/wishlist', mockAuthenticateUser, async (req, res) => {
+// ✅ FIXED: USER-SPECIFIC WISHLIST ENDPOINTS
+app.post('/api/wishlist', extractUserId, async (req, res) => {
   try {
     const { product } = req.body;
-    const userId = req.user.uid;
+    const userId = req.userId;
 
     if (!product) {
       return res.status(400).json({ error: 'Product is required' });
@@ -171,22 +165,28 @@ app.post('/api/wishlist', mockAuthenticateUser, async (req, res) => {
       id: product.id || generateProductId(product)
     };
 
+    // Initialize user's wishlist if it doesn't exist
     if (!wishlistData[userId]) {
       wishlistData[userId] = [];
     }
 
+    // Check if product already exists for this specific user
     const existingIndex = wishlistData[userId].findIndex(p => p.id === productWithId.id);
     if (existingIndex === -1) {
       wishlistData[userId].push({
         ...productWithId,
         addedAt: new Date().toISOString()
       });
+      console.log(`✅ Added product to wishlist for user ${userId.substring(0, 8)}...`);
+    } else {
+      console.log(`⚠️ Product already in wishlist for user ${userId.substring(0, 8)}...`);
     }
 
     res.json({ 
       success: true, 
       message: 'Product added to wishlist',
-      productId: productWithId.id
+      productId: productWithId.id,
+      userId: userId.substring(0, 8) + '...'
     });
     
   } catch (error) {
@@ -195,19 +195,28 @@ app.post('/api/wishlist', mockAuthenticateUser, async (req, res) => {
   }
 });
 
-app.delete('/api/wishlist/:productId', mockAuthenticateUser, async (req, res) => {
+app.delete('/api/wishlist/:productId', extractUserId, async (req, res) => {
   try {
     const { productId } = req.params;
-    const userId = req.user.uid;
+    const userId = req.userId;
+
+    console.log(`🗑️ Removing product ${productId} from wishlist for user ${userId.substring(0, 8)}...`);
 
     if (wishlistData[userId]) {
+      const initialLength = wishlistData[userId].length;
       wishlistData[userId] = wishlistData[userId].filter(p => p.id !== productId);
+      const finalLength = wishlistData[userId].length;
+      
+      console.log(`✅ Removed product. Before: ${initialLength}, After: ${finalLength}`);
+    } else {
+      console.log(`⚠️ No wishlist found for user ${userId.substring(0, 8)}...`);
     }
 
     res.json({ 
       success: true, 
       message: 'Product removed from wishlist',
-      productId: productId
+      productId: productId,
+      userId: userId.substring(0, 8) + '...'
     });
     
   } catch (error) {
@@ -216,10 +225,14 @@ app.delete('/api/wishlist/:productId', mockAuthenticateUser, async (req, res) =>
   }
 });
 
-app.get('/api/wishlist/products', mockAuthenticateUser, async (req, res) => {
+app.get('/api/wishlist/products', extractUserId, async (req, res) => {
   try {
-    const userId = req.user.uid;
+    const userId = req.userId;
     const userWishlist = wishlistData[userId] || [];
+    
+    console.log(`📋 Fetching wishlist for user ${userId.substring(0, 8)}...: ${userWishlist.length} items`);
+    console.log(`👥 Total users with wishlists: ${Object.keys(wishlistData).length}`);
+    
     res.json(userWishlist);
     
   } catch (error) {
@@ -228,7 +241,21 @@ app.get('/api/wishlist/products', mockAuthenticateUser, async (req, res) => {
   }
 });
 
-// Updated API services with exact price formatting
+// Debug endpoint to see current wishlist state
+app.get('/api/debug/wishlists', (req, res) => {
+  const summary = {};
+  Object.keys(wishlistData).forEach(userId => {
+    summary[userId.substring(0, 8) + '...'] = wishlistData[userId].length;
+  });
+  
+  res.json({
+    totalUsers: Object.keys(wishlistData).length,
+    userSummary: summary,
+    totalProducts: Object.values(wishlistData).reduce((sum, arr) => sum + arr.length, 0)
+  });
+});
+
+// API services (keep existing)
 const apiServices = {
   rapidAPI: async (query) => {
     try {
@@ -253,7 +280,6 @@ const apiServices = {
         const currentPrice = product.offer?.price || product.price;
         const originalPrice = product.offer?.original_price || product.price * (1 + Math.random() * 0.3);
         
-        // ✅ UPDATED: Use new price formatting
         const priceInfo = generatePriceDisplay(currentPrice, originalPrice, product.source);
         const additionalInfo = generateAdditionalInfo(product.source, product.category);
         
@@ -262,7 +288,6 @@ const apiServices = {
           title: product.product_title,
           price: currentPrice,
           originalPrice: originalPrice,
-          // ✅ All price display fields
           priceText: priceInfo.priceText,
           currentPriceText: priceInfo.currentPriceText,
           originalPriceText: priceInfo.originalPriceText,
@@ -270,7 +295,6 @@ const apiServices = {
           discountPercentage: priceInfo.discountPercentage,
           additionalInfo: additionalInfo,
           image: product.product_photos?.[0] || `https://picsum.photos/300/200?random=${Math.random()}`,
-          // ✅ FIXED: Always use search links, never fake product links
           link: generateProductLink(product.product_title, product.source),
           source: product.source || 'Online Store',
           category: 'general',
@@ -313,7 +337,6 @@ const apiServices = {
         const currentPrice = parseFloat(product.price?.replace(/[^0-9.]/g, '')) || 0;
         const originalPrice = parseFloat(product.original_price?.replace(/[^0-9.]/g, '')) || currentPrice * (1 + Math.random() * 0.2);
         
-        // ✅ UPDATED: Use new price formatting
         const priceInfo = generatePriceDisplay(currentPrice, originalPrice, product.source);
         const additionalInfo = generateAdditionalInfo(product.source, 'shopping');
         
@@ -322,7 +345,6 @@ const apiServices = {
           title: product.title,
           price: currentPrice,
           originalPrice: originalPrice,
-          // ✅ All price display fields
           priceText: priceInfo.priceText,
           currentPriceText: priceInfo.currentPriceText,
           originalPriceText: priceInfo.originalPriceText,
@@ -330,7 +352,6 @@ const apiServices = {
           discountPercentage: priceInfo.discountPercentage,
           additionalInfo: additionalInfo,
           image: product.thumbnail || `https://picsum.photos/300/200?random=${Math.random()}`,
-          // ✅ FIXED: Always use search links, never fake product links
           link: generateProductLink(product.title, product.source),
           source: product.source || 'Google Shopping',
           category: 'general',
@@ -363,7 +384,6 @@ const apiServices = {
         const currentPrice = Math.round(product.price * 80);
         const originalPrice = Math.round(product.price * 80 * (1 + Math.random() * 0.4));
         
-        // ✅ UPDATED: Use new price formatting
         const priceInfo = generatePriceDisplay(currentPrice, originalPrice, 'Amazon');
         const additionalInfo = generateAdditionalInfo('Amazon', product.category);
         
@@ -372,7 +392,6 @@ const apiServices = {
           title: product.title,
           price: currentPrice,
           originalPrice: originalPrice,
-          // ✅ All price display fields
           priceText: priceInfo.priceText,
           currentPriceText: priceInfo.currentPriceText,
           originalPriceText: priceInfo.originalPriceText,
@@ -380,7 +399,6 @@ const apiServices = {
           discountPercentage: priceInfo.discountPercentage,
           additionalInfo: additionalInfo,
           image: product.image,
-          // ✅ FIXED: Always use Amazon search links for FakeStore products
           link: generateProductLink(product.title, 'Amazon'),
           source: 'Amazon',
           category: product.category,
@@ -397,7 +415,7 @@ const apiServices = {
   }
 };
 
-// ✅ FIXED: Enhanced fallback with ONLY REAL WORKING SEARCH LINKS
+// Fallback products
 const getFallbackProducts = (query) => {
   const encodedQuery = encodeURIComponent(query);
   
@@ -414,7 +432,6 @@ const getFallbackProducts = (query) => {
       discountPercentage: 3,
       additionalInfo: ['1K+ bought in past month', 'FREE delivery Mon, 3 Nov'],
       image: `https://picsum.photos/300/200?random=1`,
-      // ✅ FIXED: Real Amazon search link
       link: `https://www.amazon.in/s?k=${encodedQuery}`,
       source: 'Amazon',
       category: 'electronics',
@@ -435,7 +452,6 @@ const getFallbackProducts = (query) => {
       discountPercentage: 29,
       additionalInfo: ['500+ bought in past month', 'FREE delivery Tue, 4 Nov'],
       image: `https://picsum.photos/300/200?random=2`,
-      // ✅ FIXED: Real Flipkart search link
       link: `https://www.flipkart.com/search?q=${encodedQuery}`,
       source: 'Flipkart',
       category: 'electronics',
@@ -443,46 +459,22 @@ const getFallbackProducts = (query) => {
       reviewCount: '324',
       timestamp: new Date(),
       isMock: false
-    },
-    {
-      id: `fallback_3_${Date.now()}`,
-      title: `${query} - Value Edition`,
-      price: 249,
-      originalPrice: 297,
-      priceText: '₹249 M.R.P: ₹297 (16% off)',
-      currentPriceText: '₹249',
-      originalPriceText: '₹297',
-      discountText: '16% off',
-      discountPercentage: 16,
-      additionalInfo: ['Popular pick', 'FREE delivery Thu, 6 Nov'],
-      image: `https://picsum.photos/300/200?random=3`,
-      // ✅ FIXED: Real Myntra search link
-      link: `https://www.myntra.com/${query.replace(/\s+/g, '-')}`,
-      source: 'Myntra',
-      category: 'fashion',
-      rating: '4.4',
-      reviewCount: '89',
-      timestamp: new Date(),
-      isMock: false
     }
   ];
   return fallbacks;
 };
 
-// ✅ FIXED: Function to clean and validate product data with REAL WORKING SEARCH LINKS
+// Clean product data
 function cleanProductData(products) {
   return products.map(product => {
-    // Ensure product has an ID
     if (!product.id) {
       product.id = generateProductId(product);
     }
     
-    // ✅ FIXED: ALWAYS use search links - they always work
     if (!product.link || !product.link.startsWith('http')) {
       product.link = generateProductLink(product.title, product.source);
     }
     
-    // ✅ FIXED: Convert ANY fake product links to search links
     if (product.link.includes('/dp/') && !isValidAmazonProductLink(product.link)) {
       const encodedTitle = encodeURIComponent(product.title);
       product.link = `https://www.amazon.in/s?k=${encodedTitle}`;
@@ -493,7 +485,6 @@ function cleanProductData(products) {
       product.link = `https://www.flipkart.com/search?q=${encodedTitle}`;
     }
     
-    // Ensure source is recognizable
     if (!product.source || product.source === 'Online Store') {
       if (product.link.includes('amazon')) product.source = 'Amazon';
       else if (product.link.includes('flipkart')) product.source = 'Flipkart';
@@ -503,7 +494,6 @@ function cleanProductData(products) {
       else product.source = 'Online Store';
     }
     
-    // ✅ UPDATED: Ensure all price display fields exist
     if (!product.priceText) {
       const priceInfo = generatePriceDisplay(product.price, product.originalPrice, product.source);
       product.priceText = priceInfo.priceText;
@@ -513,7 +503,6 @@ function cleanProductData(products) {
       product.discountPercentage = priceInfo.discountPercentage;
     }
     
-    // Ensure additional info exists
     if (!product.additionalInfo) {
       product.additionalInfo = generateAdditionalInfo(product.source, product.category);
     }
@@ -522,7 +511,6 @@ function cleanProductData(products) {
   });
 }
 
-// Helper functions to validate real product links
 function isValidAmazonProductLink(link) {
   return link.includes('amazon.in/dp/') && link.match(/\/dp\/[A-Z0-9]{10}/);
 }
@@ -543,30 +531,25 @@ app.get('/api/scrape', async (req, res) => {
     
     let allProducts = [];
     
-    // Call APIs in parallel
     const [rapidResults, serpResults, fakeStoreResults] = await Promise.allSettled([
       apiServices.rapidAPI(query),
       apiServices.serpAPI(query),
       apiServices.fakeStore(query)
     ]);
     
-    // Collect results
     if (rapidResults.status === 'fulfilled') allProducts.push(...rapidResults.value);
     if (serpResults.status === 'fulfilled') allProducts.push(...serpResults.value);
     if (fakeStoreResults.status === 'fulfilled') allProducts.push(...fakeStoreResults.value);
     
     console.log(`📊 API Results: ${allProducts.length} total products`);
     
-    // If no API results, use fallback
     if (allProducts.length === 0) {
       console.log('💡 Using fallback products');
       allProducts = getFallbackProducts(query);
     }
     
-    // Clean and validate product data
     allProducts = cleanProductData(allProducts);
     
-    // Remove duplicates and sort
     const uniqueProducts = allProducts.filter((product, index, self) =>
       index === self.findIndex(p => p.id === product.id)
     );
@@ -575,13 +558,7 @@ app.get('/api/scrape', async (req, res) => {
       (b.discountPercentage || 0) - (a.discountPercentage || 0)
     );
     
-    console.log(`✅ Final: ${sortedProducts.length} products with exact e-commerce formatting`);
-    console.log('🔗 ALL PRODUCTS HAVE REAL WORKING SEARCH LINKS');
-    
-    // Log link verification
-    sortedProducts.forEach((product, index) => {
-      console.log(`   ${index + 1}. ${product.source}: ${product.link}`);
-    });
+    console.log(`✅ Final: ${sortedProducts.length} products`);
     
     res.json(sortedProducts.slice(0, maxResults));
     
@@ -595,22 +572,20 @@ app.get('/api/scrape', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'Discount Aggregator API Server (REAL WORKING SEARCH LINKS)',
+    message: 'Discount Aggregator API Server',
     timestamp: new Date().toISOString(),
     features: [
-      'Exact E-commerce Price Formatting', 
-      'M.R.P. with Discount Percentage',
-      'Additional Info (Delivery, Popularity)',
-      'REAL WORKING SEARCH LINKS - No 404 Errors!'
-    ],
-    exampleFormat: '₹33,990 M.R.P: ₹34,900 (3% off)',
-    linkTypes: 'Real search links only - guaranteed to work'
+      'User-Specific Wishlists', 
+      'Exact E-commerce Price Formatting',
+      'Real Working Search Links'
+    ]
   });
 });
+
 app.use(express.static(path.join(__dirname, 'build')));
 const buildPath = path.join(__dirname, "build");
 app.use(express.static(buildPath));
-// Fallback route – let React handle unknown routes
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(buildPath, "index.html"));
 });
@@ -618,9 +593,6 @@ app.get("*", (req, res) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🚀 DISCOUNT AGGREGATOR API running on port ${PORT}`);
-  console.log('💰 Exact e-commerce price formatting ENABLED');
-  console.log('📱 Products will display exactly like Amazon/Flipkart!');
-  console.log('🔗 REAL WORKING SEARCH LINKS ENABLED - Buy Now ALWAYS works!');
-  console.log('🎯 Using search links only - no fake product links');
+  console.log('✅ User-specific wishlists ENABLED');
+  console.log('🔐 Real user ID authentication ACTIVE');
 });
