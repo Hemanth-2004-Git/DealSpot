@@ -4,12 +4,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@testing-library/jest-dom": "^5.16.4",
-    "@testing-library/react": "^13.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.12.2",
-    "cheerio": "^1.1.2",
-    "cors": "^2.8.5",
+  
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^9.17.2",
@@ -25,13 +20,7 @@
   },
   "scripts": {
      "start": "node server.js",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "server": "node server.js",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "build:ci": "set CI=true&& react-scripts build",
+    "build": "rt-scripts build",
     "dev": "concurrently \"npm run server\" \"npm start\""
   },
   "eslintConfig": {
@@ -40,13 +29,7 @@
       "react-app/jest"
     ]
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
+  "brows
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
